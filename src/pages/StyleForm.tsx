@@ -1,21 +1,28 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Steps, Button, Progress, Result, message } from "antd";
+import { Steps, Button, Progress, Result, message, Spin } from "antd";
 import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   CheckOutlined,
 } from "@ant-design/icons";
-import StyleCard from "@/components/StyleCard";
+import LogoCategoryCard from "@/components/LogoCategoryCard";
 import ColorPaletteCard from "@/components/ColorPaletteCard";
 import TypographyCard from "@/components/TypographyCard";
-import { styleOptions, colorPalettes, typographyStyles } from "@/data/styles";
+import { useLogoCategories } from "@/hooks/useLogoCategories";
+import { useSaveStyleResponsePublic } from "@/hooks/useStyleResponses";
+import { useClientPublic } from "@/hooks/useClients";
+import { colorPalettes, typographyStyles } from "@/data/styles";
 
 const StyleForm = () => {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const { categories: logoCategories, isLoading: categoriesLoading } = useLogoCategories();
+  const { data: client, isLoading: clientLoading, error: clientError } = useClientPublic(clientId);
+  const saveResponseMutation = useSaveStyleResponsePublic();
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  // Mapeia categoryId -> optionId selecionada
+  const [selectedLogoOptions, setSelectedLogoOptions] = useState<Record<string, string>>({});
   const [selectedPalette, setSelectedPalette] = useState<string | null>(null);
   const [selectedTypography, setSelectedTypography] = useState<string | null>(
     null
@@ -23,25 +30,98 @@ const StyleForm = () => {
   const [isCompleted, setIsCompleted] = useState(false);
 
   const steps = [
-    { title: "Estilos", description: "Escolha até 3 estilos" },
+    { title: "Tipos de Logo", description: "Selecione uma opção em cada categoria" },
     { title: "Cores", description: "Selecione uma paleta" },
     { title: "Tipografia", description: "Escolha um estilo" },
     { title: "Confirmação", description: "Revise suas escolhas" },
   ];
 
-  const handleStyleToggle = (styleId: string) => {
-    if (selectedStyles.includes(styleId)) {
-      setSelectedStyles(selectedStyles.filter((id) => id !== styleId));
-    } else if (selectedStyles.length < 3) {
-      setSelectedStyles([...selectedStyles, styleId]);
-    } else {
-      message.warning("Você pode selecionar no máximo 3 estilos");
-    }
+  const handleLogoOptionSelect = (categoryId: string, optionId: string) => {
+    setSelectedLogoOptions((prev) => ({
+      ...prev,
+      [categoryId]: optionId,
+    }));
   };
 
-  const handleNext = () => {
-    if (currentStep === 0 && selectedStyles.length === 0) {
-      message.warning("Selecione pelo menos 1 estilo");
+  const allCategoriesSelected = logoCategories.every(
+    (category) => selectedLogoOptions[category.id]
+  );
+
+  // Mostrar loading enquanto busca categorias ou cliente
+  if ((categoriesLoading && logoCategories.length === 0) || clientLoading) {
+    return (
+      <div className="page-container min-h-screen flex items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  // Verificar se cliente existe (apenas após o loading terminar e não houver erro de rede)
+  if (!clientLoading && !client && clientId && !clientError) {
+    return (
+      <div className="page-container min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Result
+            status="404"
+            title="Cliente não encontrado"
+            subTitle="O link do formulário é inválido ou o cliente não existe. Verifique o link e tente novamente."
+            extra={[
+              <Button type="primary" key="home" onClick={() => navigate("/")}>
+                Voltar ao Início
+              </Button>,
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Tratar erros de rede/autenticação
+  if (clientError && !clientLoading) {
+    return (
+      <div className="page-container min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Result
+            status="500"
+            title="Erro ao carregar formulário"
+            subTitle="Ocorreu um erro ao buscar as informações do cliente. Tente recarregar a página."
+            extra={[
+              <Button type="primary" key="reload" onClick={() => window.location.reload()}>
+                Recarregar Página
+              </Button>,
+              <Button key="home" onClick={() => navigate("/")}>
+                Voltar ao Início
+              </Button>,
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Verificar se já foi completado
+  if (!clientLoading && client?.status === "completed") {
+    return (
+      <div className="page-container min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Result
+            status="success"
+            title="Formulário já respondido"
+            subTitle="Este formulário já foi preenchido anteriormente. Entre em contato com o designer se precisar fazer alterações."
+            extra={[
+              <Button type="primary" key="home" onClick={() => navigate("/")}>
+                Voltar ao Início
+              </Button>,
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const handleNext = async () => {
+    if (currentStep === 0 && !allCategoriesSelected) {
+      message.warning("Selecione uma opção em cada categoria de logo");
       return;
     }
     if (currentStep === 1 && !selectedPalette) {
@@ -53,7 +133,26 @@ const StyleForm = () => {
       return;
     }
     if (currentStep === 3) {
-      setIsCompleted(true);
+      // Salvar resposta no banco
+      if (!clientId) {
+        message.error("ID do cliente não encontrado");
+        return;
+      }
+
+      try {
+        await saveResponseMutation.mutateAsync({
+          clientId,
+          responseData: {
+            selectedLogoOptions,
+            selectedPalette,
+            selectedTypography,
+          },
+        });
+        setIsCompleted(true);
+      } catch (error) {
+        console.error("Erro ao salvar resposta:", error);
+        // Erro já é mostrado pelo hook
+      }
       return;
     }
     setCurrentStep(currentStep + 1);
@@ -96,20 +195,22 @@ const StyleForm = () => {
           <div className="animate-fade-in">
             <div className="text-center mb-8">
               <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-2">
-                Quais estilos te atraem?
+                Escolha seus tipos de logo preferidos
               </h2>
               <p className="text-muted-foreground">
-                Selecione até 3 estilos que representam sua visão (
-                {selectedStyles.length}/3 selecionados)
+                Selecione uma opção em cada categoria abaixo (
+                {Object.keys(selectedLogoOptions).length}/{logoCategories.length} categorias)
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {styleOptions.map((style) => (
-                <StyleCard
-                  key={style.id}
-                  {...style}
-                  selected={selectedStyles.includes(style.id)}
-                  onClick={() => handleStyleToggle(style.id)}
+            <div className="space-y-6 max-w-5xl mx-auto">
+              {logoCategories.map((category) => (
+                <LogoCategoryCard
+                  key={category.id}
+                  category={category}
+                  selectedOptionId={selectedLogoOptions[category.id] || null}
+                  onSelectOption={(optionId) =>
+                    handleLogoOptionSelect(category.id, optionId)
+                  }
                 />
               ))}
             </div>
@@ -173,29 +274,43 @@ const StyleForm = () => {
               </p>
             </div>
             <div className="max-w-3xl mx-auto space-y-8">
-              {/* Selected Styles */}
+              {/* Selected Logo Options */}
               <div className="glass-card p-6 rounded-xl">
                 <h3 className="font-semibold text-lg text-foreground mb-4">
-                  Estilos Selecionados
+                  Tipos de Logo Selecionados
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {selectedStyles.map((styleId) => {
-                    const style = styleOptions.find((s) => s.id === styleId);
-                    return style ? (
+                <div className="space-y-4">
+                  {logoCategories.map((category) => {
+                    const selectedOptionId = selectedLogoOptions[category.id];
+                    const selectedOption = category.options.find(
+                      (opt) => opt.id === selectedOptionId
+                    );
+                    if (!selectedOption) return null;
+
+                    return (
                       <div
-                        key={styleId}
-                        className="rounded-lg overflow-hidden border border-border"
+                        key={category.id}
+                        className="border border-border rounded-lg p-4"
                       >
-                        <img
-                          src={style.image}
-                          alt={style.name}
-                          className="w-full h-24 object-cover"
-                        />
-                        <div className="p-2 text-center text-sm font-medium text-foreground">
-                          {style.name}
+                        <h4 className="font-medium text-foreground mb-2">
+                          {category.title}
+                        </h4>
+                        <div className="flex items-center gap-4">
+                          <div className="w-24 h-24 rounded-lg overflow-hidden border border-border">
+                            <img
+                              src={selectedOption.image}
+                              alt={selectedOption.alt}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-muted-foreground">
+                              {category.description}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    ) : null;
+                    );
                   })}
                 </div>
               </div>
@@ -266,19 +381,19 @@ const StyleForm = () => {
     <div className="page-container min-h-screen">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="content-container py-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="content-container py-3 sm:py-4 px-2 sm:px-4">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">
                   GE
                 </span>
               </div>
-              <span className="font-display text-xl font-semibold text-foreground">
+              <span className="font-display text-lg sm:text-xl font-semibold text-foreground hidden sm:inline">
                 Guia de Estilos
               </span>
             </div>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               Passo {currentStep + 1} de {steps.length}
             </span>
           </div>
@@ -293,7 +408,7 @@ const StyleForm = () => {
       </div>
 
       {/* Steps (Desktop) */}
-      <div className="hidden md:block pt-28 pb-8 px-4">
+      <div className="hidden md:block pt-28 pb-8 px-2 sm:px-4">
         <div className="content-container">
           <Steps
             current={currentStep}
@@ -306,21 +421,22 @@ const StyleForm = () => {
       </div>
 
       {/* Content */}
-      <main className="pt-28 md:pt-8 pb-32 px-4">
+      <main className="pt-24 sm:pt-28 md:pt-8 pb-32 px-2 sm:px-4">
         <div className="content-container">{renderStepContent()}</div>
       </main>
 
       {/* Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border">
-        <div className="content-container py-4">
-          <div className="flex items-center justify-between">
+        <div className="content-container py-3 sm:py-4 px-2 sm:px-4">
+          <div className="flex items-center justify-between gap-2">
             <Button
               size="large"
               icon={<ArrowLeftOutlined />}
               onClick={handlePrev}
               disabled={currentStep === 0}
+              className="flex-1 sm:flex-initial"
             >
-              Voltar
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
             <Button
               type="primary"
@@ -333,6 +449,7 @@ const StyleForm = () => {
                 )
               }
               onClick={handleNext}
+              className="flex-1 sm:flex-initial"
             >
               {currentStep === steps.length - 1 ? "Enviar" : "Avançar"}
             </Button>

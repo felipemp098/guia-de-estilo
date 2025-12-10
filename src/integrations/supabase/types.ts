@@ -14,7 +14,145 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      logo_categories: {
+        Row: {
+          created_at: string | null
+          description: string
+          display_order: number
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      logo_options: {
+        Row: {
+          alt_text: string
+          category_id: string
+          created_at: string | null
+          display_order: number
+          id: string
+          image_url: string
+          updated_at: string | null
+        }
+        Insert: {
+          alt_text: string
+          category_id: string
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          image_url: string
+          updated_at?: string | null
+        }
+        Update: {
+          alt_text?: string
+          category_id?: string
+          created_at?: string | null
+          display_order?: number
+          id?: string
+          image_url?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logo_options_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "logo_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_responses: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          id: string
+          selected_logo_options: Json
+          selected_palette: string | null
+          selected_typography: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          id?: string
+          selected_logo_options?: Json
+          selected_palette?: string | null
+          selected_typography?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          id?: string
+          selected_logo_options?: Json
+          selected_palette?: string | null
+          selected_typography?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_responses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

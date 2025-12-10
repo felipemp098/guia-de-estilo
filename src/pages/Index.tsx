@@ -54,35 +54,36 @@ const Index = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
+      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4">
         <div className="content-container">
           <div className="text-center max-w-4xl mx-auto animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent rounded-full text-accent-foreground text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-accent rounded-full text-accent-foreground text-xs sm:text-sm font-medium mb-4 sm:mb-6">
               <CheckCircleOutlined />
-              <span>Para designers que valorizam clareza</span>
+              <span className="hidden sm:inline">Para designers que valorizam clareza</span>
+              <span className="sm:hidden">Designers</span>
             </div>
-            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight">
+            <h1 className="font-display text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-4 sm:mb-6 leading-tight">
               Descubra o estilo visual
               <br />
               <span className="gradient-text">do seu cliente</span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-muted-foreground mb-6 sm:mb-10 max-w-2xl mx-auto">
               Uma plataforma que transforma o processo de briefing em uma
               experiência visual, interativa e inteligente.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/auth">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+              <Link to="/auth" className="w-full sm:w-auto">
                 <Button
                   type="primary"
                   size="large"
                   icon={<ArrowRightOutlined />}
-                  className="h-12 px-8 text-base"
+                  className="h-12 px-6 sm:px-8 text-base w-full sm:w-auto"
                 >
                   Começar Agora
                 </Button>
               </Link>
-              <Link to="/form/demo">
-                <Button size="large" className="h-12 px-8 text-base">
+              <Link to="/form/demo" className="w-full sm:w-auto">
+                <Button size="large" className="h-12 px-6 sm:px-8 text-base w-full sm:w-auto">
                   Ver Demonstração
                 </Button>
               </Link>

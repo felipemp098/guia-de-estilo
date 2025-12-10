@@ -96,9 +96,9 @@ export default function Auth() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-16">
+      <main className="container mx-auto px-4 py-8 sm:py-16">
         <div className="max-w-md mx-auto">
-          <div className="bg-card rounded-2xl shadow-elegant p-8 border border-border">
+          <div className="bg-card rounded-2xl shadow-elegant p-4 sm:p-8 border border-border">
             <div className="text-center mb-8">
               <Title level={2} className="!mb-2 !text-foreground">
                 {isLogin ? "Bem-vindo de volta" : "Criar conta"}

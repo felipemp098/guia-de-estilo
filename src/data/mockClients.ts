@@ -5,9 +5,11 @@ export interface Client {
   status: "pending" | "completed";
   createdAt: string;
   completedAt?: string;
-  selectedStyles?: string[];
+  selectedLogoOptions?: Record<string, string> | string; // Mapeia categoryId -> optionId
   selectedPalette?: string;
   selectedTypography?: string;
+  // Mantido para compatibilidade com dados antigos
+  selectedStyles?: string[];
 }
 
 export const mockClients: Client[] = [

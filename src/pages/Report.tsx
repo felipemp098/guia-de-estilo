@@ -7,27 +7,43 @@ import {
   Divider,
   Typography,
   Empty,
+  Spin,
+  Breadcrumb,
+  message,
 } from "antd";
 import {
-  ArrowLeftOutlined,
   DownloadOutlined,
   BulbOutlined,
   BgColorsOutlined,
   FontSizeOutlined,
   StarOutlined,
 } from "@ant-design/icons";
+import { useRef, useState } from "react";
 import Header from "@/components/layout/Header";
-import { mockClients } from "@/data/mockClients";
-import { styleOptions, colorPalettes, typographyStyles } from "@/data/styles";
+import { colorPalettes, typographyStyles } from "@/data/styles";
+import { useLogoCategories } from "@/hooks/useLogoCategories";
+import { useClientWithResponse } from "@/hooks/useClients";
+import { generateReportPDFAdvanced } from "@/utils/pdfGenerator";
 
 const { Title, Paragraph, Text } = Typography;
 const { Panel } = Collapse;
 
 const Report = () => {
   const { clientId } = useParams();
-  const client = mockClients.find((c) => c.id === clientId);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const { categories: logoCategories } = useLogoCategories();
+  const { data: clientData, isLoading, error } = useClientWithResponse(clientId);
 
-  if (!client || client.status !== "completed") {
+  if (isLoading) {
+    return (
+      <div className="page-container min-h-screen flex items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error || !clientData || clientData.status !== "completed") {
     return (
       <div className="page-container min-h-screen">
         <Header />
@@ -47,15 +63,77 @@ const Report = () => {
     );
   }
 
-  const selectedStylesData = styleOptions.filter((s) =>
-    client.selectedStyles?.includes(s.id)
-  );
+  const client = clientData;
+  const styleResponse = client.style_response;
+
+  // Parse selectedLogoOptions do JSONB
+  const selectedLogoOptions: Record<string, string> =
+    styleResponse?.selected_logo_options
+      ? (typeof styleResponse.selected_logo_options === "string"
+          ? JSON.parse(styleResponse.selected_logo_options)
+          : (styleResponse.selected_logo_options as Record<string, string>))
+      : {};
+
   const selectedPaletteData = colorPalettes.find(
-    (p) => p.id === client.selectedPalette
+    (p) => p.id === styleResponse?.selected_palette
   );
   const selectedTypographyData = typographyStyles.find(
-    (t) => t.id === client.selectedTypography
+    (t) => t.id === styleResponse?.selected_typography
   );
+
+  const handleExportPDF = async () => {
+    if (!client || !styleResponse) return;
+
+    setIsGeneratingPDF(true);
+    try {
+      await generateReportPDFAdvanced({
+        clientName: client.name,
+        completedAt: client.completed_at,
+        selectedLogoOptions,
+        logoCategories,
+        selectedPalette: selectedPaletteData
+          ? {
+              name: selectedPaletteData.name,
+              colors: selectedPaletteData.colors,
+            }
+          : null,
+        selectedTypography: selectedTypographyData
+          ? {
+              name: selectedTypographyData.name,
+              description: selectedTypographyData.description,
+            }
+          : null,
+        aiSuggestions: [
+          {
+            title: "Sugestão Principal",
+            description:
+              "Baseado nas escolhas do cliente, recomendamos uma identidade visual que combine sofisticação com clareza.",
+            recommendations: [
+              "Utilize elementos minimalistas com toques de luxo",
+              "Aposte em contrastes elegantes entre tipografia e espaços negativos",
+              "Incorpore detalhes dourados ou metálicos sutis",
+            ],
+          },
+          {
+            title: "Sugestão Alternativa",
+            description:
+              "Uma abordagem mais ousada que mantém a essência das preferências selecionadas.",
+            recommendations: [
+              "Explore variações mais contrastantes da paleta escolhida",
+              "Considere tipografias display para títulos impactantes",
+              "Adicione elementos gráficos inspirados nos estilos selecionados",
+            ],
+          },
+        ],
+      });
+      message.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      message.error("Erro ao gerar PDF. Tente novamente.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   // AI-generated suggestions based on selections
   const aiSuggestions = [
@@ -87,67 +165,90 @@ const Report = () => {
     <div className="page-container min-h-screen">
       <Header />
 
-      <main className="pt-24 pb-12 px-4">
-        <div className="content-container max-w-4xl">
+      <main className="pt-24 pb-12 px-2 sm:px-4">
+        <div ref={reportRef} className="content-container">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 animate-fade-in">
-            <div>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-2"
-              >
-                <ArrowLeftOutlined />
-                <span>Voltar ao Dashboard</span>
-              </Link>
-              <Title level={2} className="!mb-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 animate-fade-in">
+            <div className="flex-1 min-w-0">
+              <Breadcrumb className="mb-4">
+                <Breadcrumb.Item>
+                  <Link to="/dashboard">Dashboard</Link>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item className="truncate">Relatório de {client.name}</Breadcrumb.Item>
+              </Breadcrumb>
+              <Title level={2} className="!mb-0 text-xl sm:text-2xl">
                 Relatório de {client.name}
               </Title>
-              <Text type="secondary">
+              <Text type="secondary" className="text-xs sm:text-sm">
                 Respondido em{" "}
-                {new Date(client.completedAt!).toLocaleDateString("pt-BR")}
+                {client.completed_at
+                  ? new Date(client.completed_at).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Data não disponível"}
               </Text>
             </div>
-            <Button type="primary" icon={<DownloadOutlined />} size="large">
-              Exportar PDF
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              size="large"
+              loading={isGeneratingPDF}
+              onClick={handleExportPDF}
+              className="w-full sm:w-auto"
+            >
+              <span className="hidden sm:inline">Exportar PDF</span>
+              <span className="sm:hidden">PDF</span>
             </Button>
           </div>
 
-          {/* Selected Styles */}
+          {/* Selected Logo Options */}
           <Card className="glass-card mb-6 animate-slide-up">
             <div className="flex items-center gap-2 mb-4">
               <StarOutlined className="text-xl text-primary" />
               <Title level={4} className="!mb-0">
-                Estilos Selecionados
+                Tipos de Logo Selecionados
               </Title>
             </div>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedStylesData.map((style) => (
-                <Tag key={style.id} color="blue" className="text-sm px-3 py-1">
-                  {style.name}
-                </Tag>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {selectedStylesData.map((style) => (
-                <div
-                  key={style.id}
-                  className="rounded-xl overflow-hidden border border-border"
-                >
-                  <img
-                    src={style.image}
-                    alt={style.name}
-                    className="w-full h-32 object-cover"
-                  />
-                  <div className="p-3">
-                    <h4 className="font-semibold text-foreground mb-1">
-                      {style.name}
-                    </h4>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {style.description}
-                    </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {logoCategories.map((category) => {
+                const selectedOptionId = selectedLogoOptions[category.id];
+                const selectedOption = category.options.find(
+                  (opt) => opt.id === selectedOptionId
+                );
+                if (!selectedOption) return null;
+
+                return (
+                  <div
+                    key={category.id}
+                    className="border border-border rounded-xl p-3 sm:p-4"
+                  >
+                    <div className="flex flex-col items-center text-center gap-2 sm:gap-3">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg overflow-hidden border border-border flex-shrink-0">
+                        <img
+                          src={selectedOption.image}
+                          alt={selectedOption.alt}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-base sm:text-lg text-foreground mb-1">
+                          {category.title}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+                          {category.description}
+                        </p>
+                        <Tag color="blue" className="text-xs sm:text-sm">
+                          Opção selecionada
+                        </Tag>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
 
