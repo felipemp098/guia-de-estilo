@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import StyleForm from "./pages/StyleForm";
 import Report from "./pages/Report";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/form/:clientId" element={<StyleForm />} />
             <Route path="/report/:clientId" element={<Report />} />

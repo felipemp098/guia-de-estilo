@@ -71,7 +71,7 @@ const Index = () => {
               experiência visual, interativa e inteligente.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/dashboard">
+              <Link to="/auth">
                 <Button
                   type="primary"
                   size="large"
@@ -168,7 +168,7 @@ const Index = () => {
             Experimente gratuitamente e transforme a forma como você coleta
             preferências visuais.
           </p>
-          <Link to="/dashboard">
+          <Link to="/auth">
             <Button
               size="large"
               className="h-12 px-8 text-base bg-card text-foreground hover:bg-card/90 border-none"

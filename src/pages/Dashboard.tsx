@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Table,
   Tag,
@@ -9,10 +9,10 @@ import {
   Statistic,
   Tooltip,
   message,
+  Spin,
 } from "antd";
 import {
   EyeOutlined,
-  LinkOutlined,
   CopyOutlined,
   TeamOutlined,
   CheckCircleOutlined,
@@ -22,10 +22,31 @@ import type { ColumnsType } from "antd/es/table";
 import Header from "@/components/layout/Header";
 import CreateClientModal from "@/components/CreateClientModal";
 import { mockClients, Client } from "@/data/mockClients";
+import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>(mockClients);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
   const [activeTab, setActiveTab] = useState("all");
 
   const handleCreateClient = (values: { name: string; email: string }) => {
