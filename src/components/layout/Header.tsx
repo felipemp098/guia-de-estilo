@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { Layout, Menu, Button } from "antd";
-import { PlusOutlined, HomeOutlined, TeamOutlined } from "@ant-design/icons";
+import { Layout, Menu, Button, Dropdown } from "antd";
+import { PlusOutlined, TeamOutlined, UserOutlined, LogoutOutlined } from "@ant-design/icons";
+import { useAuth } from "@/hooks/useAuth";
 
 const { Header: AntHeader } = Layout;
 
@@ -11,6 +12,16 @@ interface HeaderProps {
 const Header = ({ onCreateClient }: HeaderProps) => {
   const location = useLocation();
   const isLanding = location.pathname === "/";
+  const { user, signOut } = useAuth();
+
+  const userMenuItems = [
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Sair",
+      onClick: signOut,
+    },
+  ];
 
   return (
     <AntHeader className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 bg-card/95 backdrop-blur-sm border-b border-border h-16">
@@ -23,7 +34,7 @@ const Header = ({ onCreateClient }: HeaderProps) => {
         </span>
       </Link>
 
-      {!isLanding && (
+      {!isLanding && user && (
         <div className="flex items-center gap-4">
           <Menu
             mode="horizontal"
@@ -46,15 +57,20 @@ const Header = ({ onCreateClient }: HeaderProps) => {
               Novo Cliente
             </Button>
           )}
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <Button type="text" icon={<UserOutlined />} className="flex items-center">
+              {user.email?.split("@")[0]}
+            </Button>
+          </Dropdown>
         </div>
       )}
 
       {isLanding && (
         <div className="flex items-center gap-3">
-          <Link to="/dashboard">
+          <Link to="/auth">
             <Button type="default">Entrar</Button>
           </Link>
-          <Link to="/dashboard">
+          <Link to="/auth">
             <Button type="primary">Começar Grátis</Button>
           </Link>
         </div>
